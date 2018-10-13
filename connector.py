@@ -1,6 +1,7 @@
 import socket
 
 from auxiliar import aux
+import marshaller
 
 class Listener:
 
@@ -102,7 +103,7 @@ class Client:
 		self.__socket.connect((self.__ip, self.__port))
 
 	def send(self, msg):
-		self.__socket.send(msg.encode())
+		self.__socket.send(marshaller.marshal(msg))
 
 	def is_being_used(self):
 		return self.__ip is not None and self.__port is not None and self.__binded
@@ -131,7 +132,8 @@ class Conector:
 		self.__socket.close()
 
 	def recv(self, buffsize):
-		return self.__socket.recvfrom(buffsize if buffsize is not None else 1024)
+		ret = self.__socket.recvfrom(buffsize if buffsize is not None else 1024)
+		return (marshaller.unmarshal(ret[0]), ret[1])
 
 
 
