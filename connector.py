@@ -10,8 +10,7 @@ class Listener:
 	__socket = None
 	__binded = False
 
-
-	def __init__(self, ip, port):
+	def __init__(self, ip=None, port=None):
 		# set ip and port if given
 		if(ip is not None and port is not None):
 			if(not self.set_ip_port(ip, port)):
@@ -46,7 +45,7 @@ class Listener:
 		else:
 			return False
 
-	def listen(self, backlog):
+	def listen(self, backlog=None):
 		if(not self.__binded):
 			self.__socket.bind((self.__ip, self.__port))
 			self.__binded = True
@@ -54,7 +53,7 @@ class Listener:
 
 	def accept(self):
 		(socket, ipport) = self.__socket.accept()
-		return Conector(socket, ipport[0], ipport[1])
+		return Client(ipport[0], ipport[1], socket)
 
 	def is_being_used(self):
 		return self.__ip is not None and self.__port is not None and self.__binded
@@ -65,16 +64,19 @@ class Client:
 	__ip = None
 	__port = None
 	__socket = None
+	__befora_rpc = None
 
-
-	def __init__(self, ip, port):
+	def __init__(self, ip=None, port=None, builtSocket=None):
 		# set ip and port if given
 		if(ip is not None and port is not None):
 			if(not self.set_ip_port(ip, port)):
 				raise Exception('ip or port is ill-formed')
 
 		# set socket
-		self.__socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+		if(builtSocket is None):
+			self.__socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+		else:
+			self.__socket = builtSocket
 
 	def __del__(self):
 		if(self.__socket is not None):
@@ -105,54 +107,60 @@ class Client:
 	def send(self, msg):
 		self.__socket.send(marshaller.marshal(msg))
 
+	def recv(self, buffsize=None):
+		msg = ''
+		count = 0
+
+		while msg == '' or msg is None:
+			if(count == 2):
+				raise Exception("coneciton closed")
+
+			ret = self.__socket.recvfrom(buffsize if buffsize is not None else 1024)
+
+			try:
+				msg = ret[0].decode()
+			except Exception:
+				msg = marshaller.unmarshal(ret[0])
+			else:
+				if(msg != ''):
+					msg = marshaller.unmarshal(ret[0])
+			count += 1
+
+		return (msg, ret[1])
+
 	def is_being_used(self):
 		return self.__ip is not None and self.__port is not None and self.__binded
 
+	def get_ip(self):
+		return self.__ip
 
-class Conector:
-
-	__ip = None
-	__port = None
-	__socket = None
-
-	def __init__(self, socket, ip, port):
-		self.__socket = socket
-		self.__ip = ip
-		self.__port = port
-
-
-	def __del__(self):
-		if(self.__socket is not None):
-			self.disconnect()
-
-	def __str__(self):
-		return self.__ip + ':' + str(self.__port)
-
-	def disconnect(self):
-		self.__socket.close()
-
-	def recv(self, buffsize):
-		ret = self.__socket.recvfrom(buffsize if buffsize is not None else 1024)
-		return (marshaller.unmarshal(ret[0]), ret[1])
+	def get_port(self):
+		return self.__port
 
 
 
 # FOR DEV TESTING PROPOSE ONLY
 if __name__ == '__main__':
-	ip, port = "127.0.0.1", "2727"
-	con = None
+	def test_func():
+		print('FUNFOOOU')
+
+	ip, port = "127.0.0.1", "2728"
 	if(input() == 'c'):
 		# test client
 		con = Client(ip, port)
 		print(con)
 		con.connect()
-		msg = input()
-		con.send(msg)
+		# msg = input()
+		con.send(test_func)
+		con.disconnect()
 	else:
 		# test server
 		lis = Listener(ip, port)
-		lis.listen(None)
+		lis.listen()
 		print(lis)
 		conection = lis.accept()
 		print("conection", conection)
-		print(conection.recv(None))
+		# print(conection.recv(None))
+		print(conection.recv(None)[0]())
+		lis.disconnect()
+		conection.disconnect()
