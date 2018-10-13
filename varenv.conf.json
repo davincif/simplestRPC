@@ -1,0 +1,6 @@
+{
+	"SRPC_HOST": "127.0.0.1",
+	"SRPC_HOST_PORT": "2727",
+	"SRPC_SERVER": "127.0.0.1",
+	"SRPC_SERVER_PORT": "2728"
+}

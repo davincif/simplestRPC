@@ -1,0 +1,5 @@
+virenv/
+trash/
+.vscode/
+__pycache__/
+*.pyc
