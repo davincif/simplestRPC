@@ -1,7 +1,7 @@
 import os
 
-from varenv import varenv
-from connector import Client
+from simplestRPC.varenv import varenv
+from simplestRPC.connector import Client
 
 
 class SRPCClient:

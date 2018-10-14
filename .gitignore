@@ -1,5 +1,13 @@
-virenv/
+*virenv/
 trash/
 .vscode/
 __pycache__/
 *.pyc
+
+# wheel stuff
+build/
+dist/
+simplestRPC.egg-info
+
+# tests
+# test/

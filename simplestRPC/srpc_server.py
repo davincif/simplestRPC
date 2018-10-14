@@ -2,9 +2,9 @@ import os
 import threading
 from inspect import signature
 
-from varenv import varenv
-from connector import Listener
-from auxiliar import aux
+from simplestRPC.varenv import varenv
+from simplestRPC.connector import Listener
+from simplestRPC.auxiliar import aux
 
 
 class SRPCServer:

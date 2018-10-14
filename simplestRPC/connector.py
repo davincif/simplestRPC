@@ -1,7 +1,7 @@
 import socket
 
-from auxiliar import aux
-import marshaller
+from simplestRPC.auxiliar import aux
+from simplestRPC import marshaller
 
 class Listener:
 
