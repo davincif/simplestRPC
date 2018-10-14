@@ -1,1 +1,2 @@
-simplestRPC==1.0.1b0
+simplestRPC==1.0.5b0
+varenv==1.0.1rc0

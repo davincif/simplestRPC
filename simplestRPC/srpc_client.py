@@ -1,6 +1,6 @@
 import os
 
-from simplestRPC.varenv import varenv
+import varenv
 from simplestRPC.connector import Client
 
 

@@ -2,7 +2,7 @@ import os
 import threading
 from inspect import signature
 
-from simplestRPC.varenv import varenv
+import varenv
 from simplestRPC.connector import Listener
 from simplestRPC.auxiliar import aux
 
