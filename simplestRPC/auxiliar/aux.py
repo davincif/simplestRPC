@@ -38,6 +38,15 @@ def func_args_separator(call):
 
 	return (func, args)
 
+def rpcs_tuple_list_to_dict(lot):
+	# lot = list of tuples
+	ret = {}
+
+	for tup in lot:
+		ret[tup[0]] = [elem for elem in tup[1:]]
+
+	return ret
+
 
 
 if __name__ == "__main__":

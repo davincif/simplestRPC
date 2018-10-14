@@ -2,6 +2,7 @@ import os
 
 import varenv
 from simplestRPC.connector import Client
+from simplestRPC.auxiliar import aux
 
 
 class SRPCClient:
@@ -12,6 +13,7 @@ class SRPCClient:
 	__after_rpc_call = None
 	__after_rpc_call_custom = None
 	debug = None
+
 
 	def __init__(self, debug=False):
 		# create and set client connection
@@ -29,45 +31,51 @@ class SRPCClient:
 		self.__after_rpc_call = self.__standard_after_rpc_call
 
 		# get rpcs from server
-		self.__rpcs = self.__con.recv()[0]
+		ret = self.__con.recv()[0]
+		self.__rpcs = aux.rpcs_tuple_list_to_dict(ret)
+
+		if(self.debug):
+			print("received rpcs: ", self.__rpcs)
 
 		for rpc in self.__rpcs:
-			def temp_name(*args):
+			def temp_name(itself, youIam, *args):
+				# setting up an object referece for this "method" 'cause it's actualy a function
+				itself = self
+
 				# return
 				toRet = None
 
 				# calling set before
-				if(self.__before_rpc_call is not None):
-					self.__before_rpc_call()
-				if(self.__before_rpc_call_custom is not None):
-					self.__before_rpc_call_custom()
+				if(itself.__before_rpc_call is not None):
+					itself.__before_rpc_call()
+				if(itself.__before_rpc_call_custom is not None):
+					itself.__before_rpc_call_custom()
 
 				# debug
-				if(self.debug):
-					print('temp_name as ' + rpc[0], "args >>", args)
+				if(itself.debug):
+					print('temp_name as ' + rpc, "args >>", args)
 
 				# argument consistence check
-				if(len(args) != int(rpc[1])):
-					raise Exception(temp_name.__name__ + " receives 1 argument, but got", len(args))
+				if(len(args) != int(itself.__rpcs[youIam][0])):
+					raise Exception(rpc + " receives " + str(itself.__rpcs[youIam][0]) + " argument, but got", len(args))
 
-				# remote call
-				sent = self.__con.send(rpc[0] + str(args))
+				# remote call request
+				sent = itself.__con.send(youIam + str(args))
 
-				if(self.debug):
+				if(itself.debug):
 					print('sent: ', sent)
 
-				toRet = self.__con.recv()[0]
+				# remote call response
+				toRet = itself.__con.recv()[0]
 
 				# calling set after
-				if(self.__after_rpc_call is not None):
-					self.__after_rpc_call()
-				if(self.__after_rpc_call_custom is not None):
-					self.__after_rpc_call_custom()
+				if(itself.__after_rpc_call is not None):
+					itself.__after_rpc_call()
+				if(itself.__after_rpc_call_custom is not None):
+					itself.__after_rpc_call_custom()
 
 				return toRet
-
-			setattr(self, rpc[0], temp_name)
-			temp_name.__name__ = rpc[0]
+			self.__rpcs[rpc].append(temp_name)
 
 		if(self.debug):
 			print("done!")
@@ -85,6 +93,19 @@ class SRPCClient:
 
 	def __standard_after_rpc_call(self):
 		pass
+
+	def call_rpc(self, funcName, *args):
+		ret = None
+
+		try:
+			rpc = self.__rpcs[funcName]
+		except Exception:
+			raise Exception(str(funcName) + ' is not defined')
+		else:
+			ret = rpc[1](self, funcName, *args)
+
+		return ret
+
 
 	def set_before_rpc_call(self, func, isStandard=False):
 		if(callable(func)):

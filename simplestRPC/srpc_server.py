@@ -78,6 +78,9 @@ class SRPCServer:
 
 			try:
 				msg = client.recv()[0]
+
+				if(self.debug):
+					print('from ' + str(client) + " got: ", msg)
 			except Exception as err:
 				self.disconnect_client(clientKey)
 				break
@@ -134,6 +137,10 @@ class SRPCServer:
 		if(clientKey in self.__client_pool):
 			with self.__client_pool_lock:
 				client = self.__client_pool[clientKey]
+
+				if(self.debug):
+					print("seding these rpc's for the client: ", [(rc, self.__rpcs[rc][1]) for rc in self.__rpcs])
+
 				sent = client.send([(rc, self.__rpcs[rc][1]) for rc in self.__rpcs])
 				success = True
 
