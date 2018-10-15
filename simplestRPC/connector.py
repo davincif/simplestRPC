@@ -109,7 +109,14 @@ class Client:
 		self.__socket.connect((self.__ip, self.__port))
 
 	def send(self, msg):
-		self.__socket.send(marshaller.marshal(msg))
+		sent = None
+
+		try:
+			sent = self.__socket.sendall(marshaller.marshal(msg))
+		except Exception as err:
+			raise err
+
+		return sent
 
 	def recv(self, buffsize=None):
 		msg = ''
