@@ -1,6 +1,6 @@
 # for the pack developers tests
-# import sys
-# sys.path.append('../')
+import sys
+sys.path.append('../')
 
 # for the user developer test
 from simplestRPC.srpc_server import SRPCServer
@@ -21,6 +21,7 @@ def remote_function(a, b, c):
 	return int(b) + int(c)
 
 # server = SRPCServer(debug=True)
+# server = SRPCServer(customIP='127.0.0.1', customPort=6497)
 server = SRPCServer()
 tclass =  TestClass()
 server.add_rpc(remote_function)

@@ -15,10 +15,13 @@ class SRPCClient:
 	debug = None
 
 
-	def __init__(self, debug=False):
+	def __init__(self, debug=False, customIP=None, customPort=None):
 		# create and set client connection
 		self.debug = debug
-		self.__con = Client(os.getenv("SRPC_SERVER"), os.getenv("SRPC_SERVER_PORT"))
+		self.__con = Client(
+			os.getenv("SRPC_SERVER") if customIP is None else customIP,
+			os.getenv("SRPC_SERVER_PORT") if customPort is None else customPort
+		)
 		self.__con.connect()
 
 		if(self.debug):

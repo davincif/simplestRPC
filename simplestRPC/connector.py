@@ -37,8 +37,10 @@ class Listener:
 			self.disconnect()
 			self.__binded = False
 
-		self.__ip = aux.val_ip(ip)
-		self.__port = aux.val_port(port)
+		if(ip is not None):
+			self.__ip = aux.val_ip(ip)
+		if(port is not None):
+			self.__port = aux.val_port(port)
 
 		if(self.__ip is not None and self.__port is not None):
 			return True
@@ -92,8 +94,10 @@ class Client:
 		success = False
 
 		if(not self.is_being_used()):
-			self.__ip = aux.val_ip(ip)
-			self.__port = aux.val_port(port)
+			if(ip is not None):
+				self.__ip = aux.val_ip(ip)
+			if(port is not None):
+				self.__port = aux.val_port(port)
 
 			if(self.__ip is not None and self.__port is not None):
 				success = True

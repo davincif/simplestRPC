@@ -17,9 +17,12 @@ class SRPCServer:
 	__client_servers_lock = None
 	debug = None
 
-	def __init__(self, debug=False):
+	def __init__(self, debug=False, customIP=None, customPort=None):
 		self.debug = debug
-		self.__con = Listener(os.getenv("SRPC_SERVER"), os.getenv("SRPC_SERVER_PORT"))
+		self.__con = Listener(
+			os.getenv("SRPC_SERVER") if customIP is None else customIP,
+			os.getenv("SRPC_SERVER_PORT") if customPort is None else customPort
+		)
 		if(self.debug):
 			print('debug option is ' + str(self.debug))
 			print('env var', os.getenv("SRPC_SERVER"), os.getenv("SRPC_SERVER_PORT"))
