@@ -126,16 +126,20 @@ class Client:
 			if(count == 2):
 				raise Exception("coneciton closed")
 
-			ret = self.__socket.recvfrom(buffsize if buffsize is not None else 1024)
 
 			try:
-				msg = ret[0].decode()
+				ret = self.__socket.recvfrom(buffsize if buffsize is not None else 1024)
 			except Exception:
-				msg = marshaller.unmarshal(ret[0])
+				count += 1
 			else:
-				if(msg != ''):
+				try:
+					msg = ret[0].decode()
+				except Exception:
 					msg = marshaller.unmarshal(ret[0])
-			count += 1
+				else:
+					if(msg != ''):
+						msg = marshaller.unmarshal(ret[0])
+				count += 1
 
 		return (msg, ret[1])
 

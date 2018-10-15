@@ -94,6 +94,8 @@ class SRPCClient:
 		# remote call request
 		while True:
 			err_counter = 0
+
+			# seding call
 			try:
 				sent = self.__con.send(youIam + str(args))
 			except Exception:
@@ -116,7 +118,15 @@ class SRPCClient:
 			print('sent: ', sent)
 
 		# remote call response
-		toRet = self.__con.recv()[0]
+		try:
+			toRet = self.__con.recv()[0]
+		except Exception as err:
+			self.disconnect()
+			raise Exception('Connection lost with the server and unable to reconnect')
+
+		# check for erros at the server
+		if(type(toRet) is str and ">simplestRPC.ERR:" in toRet):
+			raise Exception(toRet)
 
 		# calling set after
 		if(self.__after_rpc_call is not None):

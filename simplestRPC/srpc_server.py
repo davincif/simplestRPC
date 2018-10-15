@@ -88,9 +88,40 @@ class SRPCServer:
 				self.disconnect_client(clientKey)
 				break
 			else:
+				# separate requested function from arguments
 				func, args = aux.func_args_separator(msg)
-				response = self.__rpcs[func][0](*args)
-				client.send(response)
+
+				# check argument length consistence
+				if(len(args) == int(self.__rpcs[func][1])):
+					try:
+						response = self.__rpcs[func][0](*args)
+					except Exception as err:
+						response = '>simplestRPC.ERR: ' + str(err)
+				else:
+					response = '>simplestRPC.ERR: ' + len(args) + " given, but " + str(self.__rpcs[func][1]) + " expected"
+
+				# sending response
+				while True:
+					err_counter = 0
+
+					try:
+						client.send(response)
+					except Exception:
+						err_counter += 1
+
+						if(self.debug):
+							print('error seding response, err_counter: ' + str(err_counter))
+
+						# too much attempts
+						if(err_counter > 2):
+							self.disconnect_client(clientKey)
+							break
+
+						# try to reconect
+						self.__conection_reset(self.__ip, self.__port)
+					else:
+						# all went fine, just quit the loop
+						break
 
 
 	def disconnect_client(self, ipport, nolock=False):
