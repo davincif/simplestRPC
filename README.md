@@ -15,9 +15,9 @@ But it can be used in any soluction who need a simple and light weight comunicat
 ---
 
 ### Using
-
 ##### Steps
 1. Install dependencies ─ *see section bellow*
+1. crate a file called **varenv.conf.json**, define a json with the variable **SRPC_SERVER** and **SRPC_SERVER_PORT** as especified by the on varenv project [here](https://github.com/davincif/varenv)
 1. Create your Server
     1. Import the server class
     1. Instantiate it
@@ -27,8 +27,9 @@ But it can be used in any soluction who need a simple and light weight comunicat
     1. Import the client class
     1. Instantiate it
 
-##### Coding
+<br>
 
+##### Coding
 I recommend you to isolate your environment using virtualenv, but feel free to jump the 'setting' step if you what you're doing.
 
 ###### setting
@@ -40,8 +41,16 @@ I recommend you to isolate your environment using virtualenv, but feel free to j
 
 <br/>
 
-###### server
+###### conf exemple
+varenv.conf.json
+```json
+{
+  "SRPC_SERVER": "127.0.0.1",
+  "SRPC_SERVER_PORT": "2727",
+}
+```
 
+###### server
 file you_server.py
 ```python
 from simplestRPC.srpc_server import SRPCServer
@@ -90,7 +99,6 @@ remote_method: var in TestClass custom method
 <br/>
 
 ###### client
-
 file you_client.py
 ```python
 from simplestRPC.srpc_client import SRPCClient
@@ -115,7 +123,6 @@ return: -96
 <br/>
 
 ###### callbacks
-
 file you_client.py
 ```python
 from simplestRPC.srpc_client import SRPCClient
