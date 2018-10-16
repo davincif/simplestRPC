@@ -1,5 +1,5 @@
 # simplestRPC
-[![current](https://img.shields.io/badge/version-1.3.11--alpha%20-brightgreen.svg)](https://pypi.org/project/simplestRPC/) :green_heart:
+[![current](https://img.shields.io/badge/version-1.3.12--rc%20-brightgreen.svg)](https://pypi.org/project/simplestRPC/) :green_heart:
 [![license](https://img.shields.io/badge/license-zlib-brightgreen.svg)](https://www.zlib.net/zlib_license.html)
 [![python](https://img.shields.io/badge/python-3.5+-brightgreen.svg)](https://python.org)
 
