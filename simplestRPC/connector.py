@@ -121,10 +121,12 @@ class Client:
 	def recv(self, buffsize=None):
 		msg = ''
 		count = 0
+		command = None
+		command_arg = ''
 
 		while msg == '' or msg is None:
 			if(count == 2):
-				raise Exception("coneciton closed")
+				raise Exception("connection closed")
 
 
 			try:
@@ -139,9 +141,17 @@ class Client:
 				else:
 					if(msg != ''):
 						msg = marshaller.unmarshal(ret[0])
+				finally:
+					if(type(msg) is str):
+						command_tuple = aux.simplesRPC_command_finder(msg)
+						if(command_tuple is not None):
+							command = command_tuple[0]
+							command_arg = command_tuple[1]
+
 				count += 1
 
-		return (msg, ret[1])
+		# (message, bytes received, srpc command, srpc command arguments)
+		return (msg, ret[1], command, command_arg)
 
 	def is_being_used(self):
 		return self.__ip is not None and self.__port is not None and self.__binded

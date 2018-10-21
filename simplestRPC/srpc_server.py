@@ -16,21 +16,31 @@ class SRPCServer:
 	__client_servers = {}
 	__client_servers_lock = None
 	debug = None
+	__authenticator = None
 
-	def __init__(self, debug=False, customIP=None, customPort=None):
+	def __init__(self, debug=False, customIP=None, customPort=None, authenticator=None):
 		self.debug = debug
 		self.__con = Listener(
 			os.getenv("SRPC_SERVER") if customIP is None else customIP,
 			os.getenv("SRPC_SERVER_PORT") if customPort is None else customPort
 		)
+
 		if(self.debug):
 			print('debug option is ' + str(self.debug))
 			print('env var', os.getenv("SRPC_SERVER"), os.getenv("SRPC_SERVER_PORT"))
 			print(self.__con)
+
 		self.__con.listen()
 		self.__client_pool_lock = threading.Lock()
 		self.__client_servers_lock = threading.Lock()
 		self.__listener = threading.Thread(target=self.__serve)
+
+		if(authenticator is not None):
+			# check argument consistency
+			if(not callable(authenticator)):
+				raise Exception('authenticator must be a callable object')
+
+			self.__authenticator = authenticator
 
 	def __del_(self):
 		with self.__client_pool_lock:
@@ -57,14 +67,56 @@ class SRPCServer:
 
 			newClient = self.__con.accept()
 			newClientKey = str(newClient)
-			with self.__client_pool_lock:
-				self.__client_pool[newClientKey] = newClient
 
 			if(self.debug):
 				print("new client detected at " + newClientKey)
 
-			self.update_client_rpcs(newClientKey)
-			self.__serve_clients(newClientKey)
+			# authenticate client
+			authenticated = True
+			clientEncriptKey = None
+
+			# warn client about server authentication status
+			try:
+				newClient.send('>simplestRPC.auth: ' + ('yes' if self.__authenticator is not None else 'no'))
+				ok = newClient.recv()
+
+				if(self.debug):
+					print('auth response: ', ok)
+
+				if(ok[2] == 'auth'):
+					if(not aux.str_to_bool(ok[3])):
+						raise Exception('authentication not expected from client')
+				else:
+					raise Exception('authentication not expected from client')
+
+				if(not (ok[2] == 'auth' and ok[3] == 'ok')):
+					raise Exception('authentication not expected from client')
+			except Exception:
+				newClient.disconnect()
+				authenticated = False
+				del newClient
+			else:
+				if(self.__authenticator is not None):
+					# call autentication function
+					(authenticated, clientEncriptKey) = self.__do_authentication(newClient)
+
+					if(self.debug):
+						print('__do_authentication')
+						print('\tauthenticated: ', authenticated)
+						print('\tclientEncriptKey: ', clientEncriptKey)
+
+			# save client to pool and sync him
+			if(authenticated):
+				# save to pool
+				with self.__client_pool_lock:
+					self.__client_pool[newClientKey] = {
+						'socket': newClient,
+						'encriptKey': clientEncriptKey
+					}
+
+				# fetch rpc functions stats with the client
+				self.update_client_rpcs(newClientKey)
+				self.__serve_clients(newClientKey)
 
 	def __client_server(self, clientKey):
 		client = None
@@ -72,7 +124,8 @@ class SRPCServer:
 		while True:
 			with self.__client_servers_lock:
 				if(clientKey in self.__client_pool):
-					client = self.__client_pool[clientKey]
+					_client = self.__client_pool[clientKey]
+					client = _client['socket']
 				else:
 					if(self.debug):
 						print('client ' + clientKey + ' was deleted. Ending thread')
@@ -123,28 +176,13 @@ class SRPCServer:
 						# all went fine, just quit the loop
 						break
 
-
-	def disconnect_client(self, ipport, nolock=False):
-		if(nolock):
-			if(ipport in self.__client_pool):
-				self.__client_pool[ipport].disconnect()
-				del self.__client_pool[ipport]
-		else:
-			with self.__client_pool_lock:
-				if(ipport in self.__client_pool):
-					self.__client_pool[ipport].disconnect()
-					del self.__client_pool[ipport]
-
-	def serve(self):
-		self.__listener.daemon = False
-		self.__listener.start()
-
 	def __serve_clients(self, clientKey):
 		success = False
 
 		if(clientKey in self.__client_pool):
 			with self.__client_servers_lock:
-				client = self.__client_pool[clientKey]
+				_client = self.__client_pool[clientKey]
+				client = _client['socket']
 				aux = threading.Thread(target=self.__client_server, args=[clientKey])
 				aux.daemon = False
 				self.__client_servers[clientKey] = aux
@@ -154,6 +192,73 @@ class SRPCServer:
 
 		return success
 
+	def __do_authentication(self, newClient):
+		success = True
+		authKey = None
+
+		try:
+			clientIdent = newClient.recv()[0]
+
+			if(self.debug):
+				print('clientIdent:', clientIdent)
+
+			if(clientIdent != ''):
+				raise Exception('error')
+		except Exception:
+			success = False
+		else:
+			# call authenticator
+			authKey = self.__authenticator(clientIdent)
+
+			# check its return consistency
+			if(authKey is not None and authKey is not str and authKey is not bytes):
+				raise Exception('authenticator must return None, str or bytes')
+
+			# setting authkey encoded
+			if(authKey is None):
+				authKey = self.__encrypt_key
+			elif(authKey is bytes):
+				authKey = authKey.decode()
+
+			try:
+				worked = newClient.send(authKey)
+			except Exception:
+				success = False
+			finally:
+				if(worked is None):
+					success = False
+
+		return (success, authKey)
+
+	def set_authentication(self, authenticator, encryptKey=None):
+		# check argument consistency
+		if(not callable(authenticator)):
+			raise Exception('authenticator must be a callable object')
+
+		self.__authenticator = authenticator
+
+	# def set_encrypt_kay(self, encryptKey):
+	# 	if(type(encryptKey) == bytes)
+	# 			self.__encrypt_key = encryptKey
+	# 	elif(type(encryptKey) == str):
+	# 		self.__encrypt_key = encryptKey.encode()
+	# 	else:
+	# 		raise Exception('encryptKey must be string or bytes')
+
+	def disconnect_client(self, ipport, nolock=False):
+		if(nolock):
+			if(ipport in self.__client_pool):
+				self.__client_pool[ipport]['socket'].disconnect()
+				del self.__client_pool[ipport]
+		else:
+			with self.__client_pool_lock:
+				if(ipport in self.__client_pool):
+					self.__client_pool[ipport]['socket'].disconnect()
+					del self.__client_pool[ipport]
+
+	def serve(self):
+		self.__listener.daemon = False
+		self.__listener.start()
 
 	def add_rpc(self, func, name=None):
 		if((name is None or type(name) == str) and callable(func)):
@@ -170,12 +275,14 @@ class SRPCServer:
 
 		if(clientKey in self.__client_pool):
 			with self.__client_pool_lock:
-				client = self.__client_pool[clientKey]
+				_client = self.__client_pool[clientKey]
+				client = _client['socket']
 
 				if(self.debug):
 					print("seding these rpc's for the client: ", [(rc, self.__rpcs[rc][1]) for rc in self.__rpcs])
 
 				sent = client.send([(rc, self.__rpcs[rc][1]) for rc in self.__rpcs])
+
 				success = True
 
 			if(self.debug):

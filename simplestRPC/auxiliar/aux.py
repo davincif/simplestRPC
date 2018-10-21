@@ -5,6 +5,7 @@ __port_regex	= re.compile(r"^([0-9]{1,4}|[1-5][0-9]{4}|6[0-4][0-9]{3}|65[0-4][0-
 __func_regx		= re.compile(r"^(\w)+\(")
 __args_regx		= re.compile(r"((\'|\")([^\t\n\r,])+(\'|\"))|((\d)+)|(\w+)")
 __arg_separator	= re.compile(r"^((\s)+|(,\s))")
+__command		= re.compile(r"^(>simplestRPC.)")
 
 def val_ip(ip):
 	success = None
@@ -47,7 +48,35 @@ def rpcs_tuple_list_to_dict(lot):
 
 	return ret
 
+def simplesRPC_command_finder(mgs):
+	command = ''
+	command_arg = ''
+
+	arg = __command.match(mgs)
+	if(arg is not None):
+		payload = mgs[arg.end():].split(':')
+		command = payload[0]
+		command_arg = payload[1][1:]
+		# print('>' + command + '< >' + command_arg + '<')
+
+	if(command == ''):
+		return None
+	else:
+		return (command, command_arg)
+
+def str_to_bool(string):
+	ret = None
+
+	try:
+		ret = string in ['true', 'True', 'ok', 'nice', 'yes']
+	except Exception:
+		ret = False
+
+	return ret
+
+
 
 
 if __name__ == "__main__":
-	func_args_separator("__xaBlau_pavo_Ceis('vaca', 123, block)")
+	# func_args_separator("__xaBlau_pavo_Ceis('vaca', 123, block)")
+	simplesRPC_command_finder('>simplestRPC.auth: true')

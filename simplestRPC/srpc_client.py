@@ -12,14 +12,25 @@ class SRPCClient:
 	__after_rpc_call = None
 	__after_rpc_call_custom = None
 	debug = None
+	__encrypt_key = None
+	__encrypt_con = False
 
 
-	def __init__(self, debug=False, customIP=None, customPort=None):
+	def __init__(self, debug=False, customIP=None, customPort=None, authKey=None):
 		self.debug = debug
 
 		# rpc mechenics set
 		self.__before_rpc_call = self.__standard_before_rpc_call
 		self.__after_rpc_call = self.__standard_after_rpc_call
+
+		# save encryptation key
+		if(authKey is not None):
+			if(authKey is str):
+				self.__encrypt_key = authKey
+			elif(authKey is bytes):
+				self.__encrypt_key = authKey.decode()
+			else:
+				raise  Exception('authKey if is not None, must be str or bytes')
 
 		# create and set client connection
 		self.__conection_reset(customIP, customPort)
@@ -38,6 +49,35 @@ class SRPCClient:
 		if(self.debug):
 			print('debug option is ' + str(self.debug))
 			print("connected to : " + str(self.__con))
+
+		# receive authentication status from server
+		try:
+			ret = self.__con.recv()
+		except Exception:
+			self.__con.disconnect()
+			raise Exception('could not correctly receive data from server, connection closed')
+		else:
+			print('>> ret', ret)
+			print('aux.str_to_bool(ret[3])', aux.str_to_bool(ret[3]))
+			if(ret[2] == 'auth'):
+				if(aux.str_to_bool(ret[3])):
+					if(self.__encrypt_key is not None):
+						self.__encrypt_con = True
+						# code the encriptation
+					else:
+						# server wants an encripted connection, but the clinet do not have a key
+						self.__con.disconnect()
+						raise Exception('Server wants an encrypted connection, but the client has not encryption key')
+			else:
+				raise Exception('fail to establish authentication agreement with the server, response not expected: ' + str(ret))
+
+		try:
+			ret = self.__con.send('>simplestRPC.auth: ok')
+		except Exception:
+			self.__con.disconnect()
+			raise Exception('could not correctly receive data from server, connection closed')
+
+		if(self.debug):
 			print("waiting for rpcs")
 
 		# get rpcs from server
