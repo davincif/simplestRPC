@@ -13,9 +13,11 @@ def do_something_after(self, a):
 
 # client = SRPCClient(debug=True)
 # client = SRPCClient(customIP='127.0.0.1', customPort=6497)
-client = SRPCClient()
+# client = SRPCClient()
+client = SRPCClient(debug=True, authArgs='keypassword891324782377vcb')
+ret = client.call_rpc('remote_function', 'xablau!', 13, 108)
+print(ret)
 client.set_before_rpc_call(do_something_before)
-
 ret = client.call_rpc('remote_function', (10, 8), None, 'xablau!', 12, 108)
 print("return: ", ret)
 client.set_after_rpc_call(do_something_after)

@@ -49,8 +49,8 @@ def rpcs_tuple_list_to_dict(lot):
 	return ret
 
 def simplesRPC_command_finder(mgs):
-	command = ''
-	command_arg = ''
+	command = None
+	command_arg = None
 
 	arg = __command.match(mgs)
 	if(arg is not None):
@@ -59,10 +59,7 @@ def simplesRPC_command_finder(mgs):
 		command_arg = payload[1][1:]
 		# print('>' + command + '< >' + command_arg + '<')
 
-	if(command == ''):
-		return None
-	else:
-		return (command, command_arg)
+	return (command, command_arg)
 
 def str_to_bool(string):
 	ret = None
@@ -70,6 +67,9 @@ def str_to_bool(string):
 	try:
 		ret = string in ['true', 'True', 'ok', 'nice', 'yes']
 	except Exception:
+		ret = False
+
+	if(ret is None):
 		ret = False
 
 	return ret

@@ -18,7 +18,7 @@ class SRPCServer:
 	debug = None
 	__authenticator = None
 
-	def __init__(self, debug=False, customIP=None, customPort=None, authenticator=None):
+	def __init__(self, debug=False, customIP=None, customPort=None, authenticator=None, encryptKey=None):
 		self.debug = debug
 		self.__con = Listener(
 			os.getenv("SRPC_SERVER") if customIP is None else customIP,
@@ -35,12 +35,8 @@ class SRPCServer:
 		self.__client_servers_lock = threading.Lock()
 		self.__listener = threading.Thread(target=self.__serve)
 
-		if(authenticator is not None):
-			# check argument consistency
-			if(not callable(authenticator)):
-				raise Exception('authenticator must be a callable object')
-
-			self.__authenticator = authenticator
+		# set authentication
+		self.set_authentication(authenticator, encryptKey)
 
 	def __del_(self):
 		with self.__client_pool_lock:
@@ -77,7 +73,7 @@ class SRPCServer:
 
 			# warn client about server authentication status
 			try:
-				newClient.send('>simplestRPC.auth: ' + ('yes' if self.__authenticator is not None else 'no'))
+				sent = newClient.send('>simplestRPC.auth: ' + ('yes' if self.__authenticator is not None else 'no'))
 				ok = newClient.recv()
 
 				if(self.debug):
@@ -92,9 +88,7 @@ class SRPCServer:
 				if(not (ok[2] == 'auth' and ok[3] == 'ok')):
 					raise Exception('authentication not expected from client')
 			except Exception:
-				newClient.disconnect()
 				authenticated = False
-				del newClient
 			else:
 				if(self.__authenticator is not None):
 					# call autentication function
@@ -117,6 +111,10 @@ class SRPCServer:
 				# fetch rpc functions stats with the client
 				self.update_client_rpcs(newClientKey)
 				self.__serve_clients(newClientKey)
+			else:
+				# authorization failed or denied
+				newClient.disconnect()
+				del newClient
 
 	def __client_server(self, clientKey):
 		client = None
@@ -163,7 +161,7 @@ class SRPCServer:
 						err_counter += 1
 
 						if(self.debug):
-							print('error seding response, err_counter: ' + str(err_counter))
+							print('error sending response, err_counter: ' + str(err_counter))
 
 						# too much attempts
 						if(err_counter > 2):
@@ -197,53 +195,57 @@ class SRPCServer:
 		authKey = None
 
 		try:
+			# recive athentication argument
 			clientIdent = newClient.recv()[0]
+			if(clientIdent == ''):
+				raise Exception('error on receive')
 
 			if(self.debug):
 				print('clientIdent:', clientIdent)
 
-			if(clientIdent != ''):
-				raise Exception('error')
-		except Exception:
+			# check if argument is empty
+			(command, command_args) = aux.simplesRPC_command_finder(clientIdent)
+			if(command is not None):
+				if(command == 'empty'):
+					clientIdent = None
+				else:
+					raise Exception('client args for auth not recognized: (' + str(command) + ', ' + str(command_args) + ')')
+		except Exception as err:
+			if(self.debug):
+				print('authentication failed: ' + str(err))
 			success = False
 		else:
 			# call authenticator
 			authKey = self.__authenticator(clientIdent)
 
 			# check its return consistency
-			if(authKey is not None and authKey is not str and authKey is not bytes):
-				raise Exception('authenticator must return None, str or bytes')
+			if(authKey is not None and type(authKey) is not str and type(authKey) is not bytes):
+				raise Exception('authenticator must return None, str, bytes, empty string or False, not "' + str(type(authKey)) + '"')
 
 			# setting authkey encoded
-			if(authKey is None):
-				authKey = self.__encrypt_key
-			elif(authKey is bytes):
+			if(authKey is bytes):
 				authKey = authKey.decode()
 
+			# sending authentication response
 			try:
-				worked = newClient.send(authKey)
+				if(authKey is None or authKey == False or authKey == ''):
+					# authorization function has dineid acess for this client
+					newClient.send('>simplestRPC.auth: unauthorized')
+					success = False
+				else:
+					# successful authorization
+					newClient.send(authKey)
 			except Exception:
 				success = False
-			finally:
-				if(worked is None):
-					success = False
 
 		return (success, authKey)
 
 	def set_authentication(self, authenticator, encryptKey=None):
 		# check argument consistency
-		if(not callable(authenticator)):
-			raise Exception('authenticator must be a callable object')
-
-		self.__authenticator = authenticator
-
-	# def set_encrypt_kay(self, encryptKey):
-	# 	if(type(encryptKey) == bytes)
-	# 			self.__encrypt_key = encryptKey
-	# 	elif(type(encryptKey) == str):
-	# 		self.__encrypt_key = encryptKey.encode()
-	# 	else:
-	# 		raise Exception('encryptKey must be string or bytes')
+		if(not callable(authenticator) and authenticator is not None):
+			raise Exception('authenticator, if not None, must be a callable object')
+		else:
+			self.__authenticator = authenticator
 
 	def disconnect_client(self, ipport, nolock=False):
 		if(nolock):

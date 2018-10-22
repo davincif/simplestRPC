@@ -1,4 +1,5 @@
 import socket
+import select
 
 from simplestRPC.auxiliar import aux
 from simplestRPC import marshaller
@@ -67,6 +68,8 @@ class Client:
 	__port = None
 	__socket = None
 	__befora_rpc = None
+	__last_msg = b''
+	std_timeout=5
 
 	def __init__(self, ip=None, port=None, builtSocket=None):
 		# set ip and port if given
@@ -108,29 +111,57 @@ class Client:
 		self.__isClient = True
 		self.__socket.connect((self.__ip, self.__port))
 
-	def send(self, msg):
-		sent = None
+	def send(self, msg, resend=False):
+		count = 0
+		sent = 0
 
-		try:
-			sent = self.__socket.sendall(marshaller.marshal(msg))
-		except Exception as err:
-			raise err
+		# marshall msg
+		if(resend):
+			tosend = self.__last_msg
+		else:
+			tosend = marshaller.marshal(msg)
 
+		while sent <= 0:
+			if(count == 2):
+				raise Exception("error on msg sending: " + str(sent))
+
+			print('sending...', tosend)
+			sent = self.__socket.send(tosend)
+			print('sent: ', sent)
+			if(sent <= 0):
+				count += 1
+
+		self.__last_msg = tosend
 		return sent
 
-	def recv(self, buffsize=None):
+	def recv(self, buffsize=None, timeout=std_timeout):
 		msg = ''
 		count = 0
 		command = None
 		command_arg = ''
+		msg_error = ''
 
 		while msg == '' or msg is None:
 			if(count == 2):
-				raise Exception("connection closed")
+				raise Exception("connection closed" + msg_error)
 
 
 			try:
-				ret = self.__socket.recvfrom(buffsize if buffsize is not None else 1024)
+				goread = select.select([self.__socket], [], [], timeout)[0]
+				if(goread != []):
+					msg_error = ' by the other end'
+					ret = self.__socket.recvfrom(buffsize if buffsize is not None else 1024)
+					print('> ret', ret)
+				else:
+					# timeout! Nothing to read.
+					msg_error = ': response took too long'
+					print('resending...')
+					if(count < 2):
+						sent = self.send('', resend=True)
+						print('<< sent', sent)
+					else:
+						print('>> nop <<')
+					raise Exception('')
 			except Exception:
 				count += 1
 			else:
@@ -143,10 +174,7 @@ class Client:
 						msg = marshaller.unmarshal(ret[0])
 				finally:
 					if(type(msg) is str):
-						command_tuple = aux.simplesRPC_command_finder(msg)
-						if(command_tuple is not None):
-							command = command_tuple[0]
-							command_arg = command_tuple[1]
+						(command, command_arg) = aux.simplesRPC_command_finder(msg)
 
 				count += 1
 

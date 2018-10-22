@@ -11,12 +11,14 @@ class SRPCClient:
 	__before_rpc_call_custom = None
 	__after_rpc_call = None
 	__after_rpc_call_custom = None
-	debug = None
-	__encrypt_key = None
 	__encrypt_con = False
+	__auth_con = False
+	__auth_key = None
+	debug = None
+	auth_args = None
 
 
-	def __init__(self, debug=False, customIP=None, customPort=None, authKey=None):
+	def __init__(self, debug=False, customIP=None, customPort=None, authArgs=None, authenticate=False):
 		self.debug = debug
 
 		# rpc mechenics set
@@ -24,13 +26,11 @@ class SRPCClient:
 		self.__after_rpc_call = self.__standard_after_rpc_call
 
 		# save encryptation key
-		if(authKey is not None):
-			if(authKey is str):
-				self.__encrypt_key = authKey
-			elif(authKey is bytes):
-				self.__encrypt_key = authKey.decode()
-			else:
-				raise  Exception('authKey if is not None, must be str or bytes')
+		if(authArgs is not None):
+			self.__auth_con = True
+			self.auth_args = authArgs
+		elif(not self.__auth_con):
+			self.__auth_con = authenticate
 
 		# create and set client connection
 		self.__conection_reset(customIP, customPort)
@@ -57,28 +57,48 @@ class SRPCClient:
 			self.__con.disconnect()
 			raise Exception('could not correctly receive data from server, connection closed')
 		else:
-			print('>> ret', ret)
-			print('aux.str_to_bool(ret[3])', aux.str_to_bool(ret[3]))
 			if(ret[2] == 'auth'):
-				if(aux.str_to_bool(ret[3])):
-					if(self.__encrypt_key is not None):
-						self.__encrypt_con = True
-						# code the encriptation
-					else:
-						# server wants an encripted connection, but the clinet do not have a key
-						self.__con.disconnect()
-						raise Exception('Server wants an encrypted connection, but the client has not encryption key')
+				if(aux.str_to_bool(ret[3]) and not self.__auth_con):
+					# server wants an authenticated connection, but the clinet don't
+					self.__con.disconnect()
+					raise Exception('Server wants an authenticated connection, but the client has not encryption key')
 			else:
 				raise Exception('fail to establish authentication agreement with the server, response not expected: ' + str(ret))
 
+		# send ok auth signal
 		try:
 			ret = self.__con.send('>simplestRPC.auth: ok')
 		except Exception:
 			self.__con.disconnect()
 			raise Exception('could not correctly receive data from server, connection closed')
 
-		if(self.debug):
-			print("waiting for rpcs")
+		if(self.__auth_con):
+			# send client indetificator
+			try:
+				if(self.auth_args is not None):
+					ret = self.__con.send(self.auth_args)
+				else:
+					ret = self.__con.send('>simplestRPC.empty: None')
+			except Exception as err:
+				self.__con.disconnect()
+				raise Exception('could not send identificator to server')
+			else:
+				try:
+					ret = self.__con.recv()[0]
+					(command, command_arg) = aux.simplesRPC_command_finder(ret)
+					if(command is not None):
+						if(command == 'auth' and command_arg == 'unauthorized'):
+							raise Exception('client unauthorized')
+						else:
+							raise Exception("command '" + command + "' with args '" + command_arg + "' not expected")
+				except Exception as err:
+					self.__con.disconnect()
+					raise Exception('could not receive authetication key from server: ' + str(err))
+				else:
+					self.__auth_key = ret
+
+			if(self.debug):
+				print("waiting for rpcs")
 
 		# get rpcs from server
 		ret = self.__con.recv()[0]
@@ -191,19 +211,21 @@ class SRPCClient:
 		ret = None
 
 		# treating potential argumetns for callback functions
-		before_call_args = args[:1]
-		if(before_call_args is not None and type(before_call_args) in [tuple, list]):
-			args = args[1:]
-		else:
-			before_call_args = None
-
+		before_call_args = None
 		after_call_args = None
 		if(len(args) > rpc_qtd_args):
-			after_call_args = args[:1]
-			if(type(after_call_args) == tuple):
+			before_call_args = args[:1]
+			if(before_call_args is not None and type(before_call_args) in [tuple, list]):
 				args = args[1:]
 			else:
-				after_call_args = None
+				before_call_args = None
+
+			if(len(args) > rpc_qtd_args):
+				after_call_args = args[:1]
+				if(type(after_call_args) == tuple):
+					args = args[1:]
+				else:
+					after_call_args = None
 
 		if(self.debug):
 			print('calling generic with ', funcName, before_call_args, after_call_args, args)
