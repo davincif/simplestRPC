@@ -68,31 +68,22 @@ class SRPCClient:
 		pass
 
 	def __generic_funciton(self, youIam, before_call_args, after_call_args, *args):
-		# return
 		toRet = None
 
-		# check arguments consistency
-		# if(before_call_args is not None and type(before_call_args) != tuple):
-		# 	raise AttributeError("before_call_args mus be a tuple. Try put all arguments your function need in a tuple, don't worry, you'll not receive a tuple in your function")
-		# if(after_call_args is not None and type(after_call_args) != tuple):
-		# 	raise AttributeError("after_call_args mus be a tuple. Try put all arguments your function need in a tuple, don't worry, you'll not receive a tuple in your function")
-
-		# calling set before
+		# calling standard callback 'before'
 		if(self.__before_rpc_call is not None):
 			self.__before_rpc_call()
+
+		# calling custom callback 'before'
 		if(self.__before_rpc_call_custom is not None):
-			if(before_call_args is None or before_call_args[0] is None):
-				self.__before_rpc_call_custom((None,))
+			if(before_call_args is None):
+				self.__before_rpc_call_custom()
 			else:
-				self.__before_rpc_call_custom(*before_call_args[0])
+				self.__before_rpc_call_custom(*before_call_args)
 
 		# debug
 		if(self.debug):
 			print('__generic_funciton named as ' + youIam, "with args >>", args)
-
-		# argument consistence check
-		if(len(args) != int(self.__rpcs[youIam][0])):
-			raise Exception(youIam + " receives " + str(self.__rpcs[youIam][0]) + " argument, but got", len(args))
 
 		# remote call request
 		while True:
@@ -131,47 +122,85 @@ class SRPCClient:
 		if(type(toRet) is str and ">simplestRPC.ERR:" in toRet):
 			raise Exception(toRet)
 
-		# calling set after
+		# calling standard callback 'after'
 		if(self.__after_rpc_call is not None):
 			self.__after_rpc_call()
-		if(self.__after_rpc_call_custom is not None):
-			if(after_call_args is None or after_call_args[0] is None):
-				self.__after_rpc_call_custom(None)
-			else:
-				self.__after_rpc_call_custom(*after_call_args[0])
 
+		# calling custom callback 'after'
+		if(self.__after_rpc_call_custom is not None):
+			if(after_call_args is None):
+				self.__after_rpc_call_custom()
+			else:
+				self.__after_rpc_call_custom(*after_call_args)
+
+		# generic_funciton end
 		return toRet
 
 	def call_rpc(self, funcName, *args):
+		lenOfGivenArgs = len(args)
+		lenOfRPCArgs = 0
+		before_call_args = None
+		after_call_args = None
+
 		# check if funcName is a valid rpc
 		try:
-			rpc_qtd_args = self.__rpcs[funcName][0]
+			ret = int(self.__rpcs[funcName][0])
 		except Exception:
 			raise Exception(str(funcName) + ' is not defined')
-		ret = None
-
-		# treating potential argumetns for callback functions
-		before_call_args = args[:1]
-		if(before_call_args is not None and type(before_call_args) in [tuple, list]):
-			args = args[1:]
 		else:
-			before_call_args = None
+			lenOfRPCArgs = ret
+		finally:
+			lenOfRPCArgs = ret
 
-		after_call_args = None
-		if(len(args) > rpc_qtd_args):
-			after_call_args = args[:1]
-			if(type(after_call_args) == tuple):
+		# treating potential callback 'before' function argumetns
+		if(self.__before_rpc_call_custom is not None):
+			if(lenOfGivenArgs > lenOfRPCArgs):
+				# check arguments consistency
+				if(before_call_args is not None and type(before_call_args) != tuple):
+					raise AttributeError("before_call_args mus be a tuple (or None). \
+						Try to put all arguments your callback function needs in a tuple, \
+						don't worry, you'll not receive a tuple ar argument")
+
+				# setting before callback argments
+				before_call_args = args[0]
 				args = args[1:]
+				lenOfGivenArgs -= 1
 			else:
-				after_call_args = None
+				raise Exception("missing argumentot __before_rpc_call_custom function.\
+					\nYour function receives " + str(lenOfRPCArgs) + " args. \
+					But your gave " + str(lenOfGivenArgs) + ".\
+					Maybe you're forgeting some argument?")
+
+		# treating potential callback 'after' function argumetns
+		if(self.__after_rpc_call_custom is not None):
+			if(lenOfGivenArgs > lenOfRPCArgs):
+				# check arguments consistency
+				if(after_call_args is not None and type(after_call_args) != tuple):
+					raise AttributeError("after_call_args mus be a tuple (or None). \
+						Try to put all arguments your function needs in a tuple, \
+						don't worry, you'll not receive a tuple in as argument")
+
+				# setting after callback argments
+				after_call_args = args[0]
+				args = args[1:]
+				lenOfGivenArgs -= 1
+			else:
+				raise Exception("missing argumentot __after_rpc_call_custom function.\
+					\nYour function receives " + str(lenOfRPCArgs) + " args. \
+					But your gave " + str(lenOfGivenArgs) + ".\
+					Maybe you're forgeting some argument?")
+
+		# check argument size for rpc
+		if(lenOfGivenArgs != lenOfRPCArgs):
+			raise Exception("The RPC " + funcName + " receives " + str(lenOfRPCArgs) + \
+				" args. But your gave " + str(lenOfGivenArgs) + \
+				". Maybe you're forgeting some argument?")
 
 		if(self.debug):
 			print('calling generic with ', funcName, before_call_args, after_call_args, args)
 
-		# calling generic
-		ret = self.__generic_funciton(funcName, before_call_args, after_call_args, *args)
-
-		return ret
+		# calling and return generic
+		return self.__generic_funciton(funcName, before_call_args, after_call_args, *args)
 
 
 	def set_before_rpc_call(self, func, isStandard=False):
