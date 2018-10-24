@@ -3,15 +3,16 @@
 ## Index
 1. [Terminology](#terminology)
 1. [Message types table](#message-types)
+1. [Header](#header)
 1. [Message Details](#message-details)
-	1. [Execution Order](#eo-execution-order)
-	1. [Data Description](#dd-data-description)
-	1. [Data Transfer](#dt-data-transfer)
-	1. [Status Solicitation](#sl-status-solicitation)
-	1. [Status Response](#sr-status-response)
-	1. [Middleware Command](#mc-middleware-command)
-	1. [Error](#er-error)
-	1. [Meta Message](#mm-meta-message)
+	1. [Execution Order](#eo---execution-order)
+	1. [Data Description](#dd---data-description)
+	1. [Data Transfer](#dt---data-transfer)
+	1. [Status Request](#sl---status-request)
+	1. [Status Response](#sr---status-response)
+	1. [Middleware Command](#mc---middleware-command)
+	1. [Error](#er---error)
+	1. [Meta Message](#mm---meta-message)
 
 
 ## Terminology
@@ -62,36 +63,68 @@ For the context of this documentation, the terms in this section specified shall
 +---------+---------+---------+
 ```
 
-#### type
-It consistes of a sequence of two characters, one byte each, those caracters must be of the availables at [Message Types](#message-types) table.
+#### Type
+It consistes of a sequence of two characters, one byte each. These bytes discribes an ASCII character making a code, that in your turn, must be onde of the availables at [Message Types](#message-types) table.
 
 The message type, as
 
-#### size
-The size, in bytes, of the message content.
+#### Size
+message's content byte size.
 
-#### content
-The data.
+#### Content
+All the data in packages.
 
 
 ## Message Details
 At this section you'll find an detailed description, with exemples, of each type of message.
 
-#### EO ─ Execution Order
+#### DT - Data Transfer
+A message carrying the data to be sent to the other peer, along with it's meta-data description, making it 'well-structured'.
 
-#### DD ─ Data Description
+This below section shows an quick and generic pseudo json descriptior of DT messages:
+```json
+[
+	{
+		"type": dataType,
+		"content": bytes
+	}
+]
 
-#### DT ─ Data Transfer
+```
 
-#### ST ─ Status Request
+##### Integers
+A list of objects containing the key 'types', with his content. These are the types of integers available:
 
-#### SR ─ Status Response
+| type | range | description |
+| :---: | :--: | :--: |
+| int | 2^31 |
+| short-int | 2^15 |
+| abyte | 2^7 |
 
-#### MC ─ Middleware Command
+```json
+[
+	{
+		"type": "integer",
+		"content": 87
+	}
+]
 
-#### ER ─ Error
+```
 
-#### WR ─ Warning
 
-#### MM ─ Meta Message
+#### EO - Execution Order
+
+#### DD - Data Description
+
+#### ST - Status Request
+
+#### SR - Status Response
+
+#### MC - Middleware Command
+
+#### ER - Error
+
+#### WR - Warning
+
+#### MM - Meta Message
 This message has a fixed byte size is always the first to initiate a conversation, carrying the byte size of next package to be transferred.
