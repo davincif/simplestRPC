@@ -1,15 +1,21 @@
 import re
+import socket
 
-__ip_regex		= re.compile(r"^((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)(\.|)){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$")
-__port_regex	= re.compile(r"^([0-9]{1,4}|[1-5][0-9]{4}|6[0-4][0-9]{3}|65[0-4][0-9]{2}|655[0-2][0-9]|6553[0-5])$")
-__func_regx		= re.compile(r"^(\w)+\(")
-__args_regx		= re.compile(r"((\'|\")([^\t\n\r,])+(\'|\"))|((\d)+)|(\w+)")
-__arg_separator	= re.compile(r"^((\s)+|(,\s))")
+__ip_regex			= re.compile(r"^((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)(\.|)){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$")
+__host_name_regex	= re.compile(r"^\w.*\w$")
+__port_regex		= re.compile(r"^([0-9]{1,4}|[1-5][0-9]{4}|6[0-4][0-9]{3}|65[0-4][0-9]{2}|655[0-2][0-9]|6553[0-5])$")
+__func_regx			= re.compile(r"^(\w)+\(")
+__args_regx			= re.compile(r"((\'|\")([^\t\n\r,])+(\'|\"))|((\d)+)|(\w+)")
+__arg_separator		= re.compile(r"^((\s)+|(,\s))")
 
 def val_ip(ip):
 	success = None
-	if(type(ip) == str and re.search(__ip_regex, ip) is not None):
-		success = ip
+
+	if(type(ip) == str):
+		if(re.search(__ip_regex, ip) is not None):
+			success = ip
+		elif(re.search(__host_name_regex, ip) is not None):
+			success = socket.gethostbyname(ip)
 	return success
 
 def val_port(port):

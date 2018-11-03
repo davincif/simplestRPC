@@ -22,7 +22,8 @@ def remote_function(a, b, c):
 
 # server = SRPCServer(debug=True)
 # server = SRPCServer(customIP='127.0.0.1', customPort=6497)
-server = SRPCServer()
+# server = SRPCServer()
+server = SRPCServer(customIP="localhost")
 tclass =  TestClass()
 server.add_rpc(remote_function)
 server.add_rpc(tclass.remote_method, 'customName')
