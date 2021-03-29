@@ -8,7 +8,7 @@ future==0.16.0
 idna==2.7
 pkginfo==1.4.2
 pycparser==2.19
-Pygments==2.2.0
+Pygments==2.7.4
 readme-renderer==22.0
 requests==2.19.1
 requests-toolbelt==0.8.0
